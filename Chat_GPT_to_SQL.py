@@ -2,10 +2,12 @@ import streamlit as st
 from langchain_community.tools.sql_database.tool import QuerySQLDataBaseTool
 from operator import itemgetter
 from langchain.agents import create_sql_agent
+from langchain.agents import AgentType
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import PromptTemplate
 from langchain_core.runnables import RunnablePassthrough
-from langchain.agents.agent_toolkits import SQLDatabaseToolkit
+from langchain_community.agent_toolkits.sql.base import create_sql_agent
+from langchain_community.agent_toolkits.sql.toolkit import SQLDatabaseToolkit
 import pandas as pd
 import pypyodbc as podbc
 import os
@@ -15,7 +17,7 @@ import psycopg2 as pg
 import mysql.connector
 from openai import AzureOpenAI
 import json
-import SchemaAnalyzer as sa
+#import SchemaAnalyzer as sa
 import uuid
 from typing import List
 from urllib.parse import quote
@@ -49,6 +51,7 @@ from langchain_openai import OpenAIEmbeddings
 from langchain_experimental.sql.vector_sql import VectorSQLOutputParser
 from langchain_core.prompts.prompt import PromptTemplate
 from langchain.chains.sql_database.prompt import PROMPT_SUFFIX
+
 endpoint = "https://kosar-ma5rg5wy-swedencentral.cognitiveservices.azure.com/"
 model_name = "gpt-35-turbo-instruct"
 deployment = "gpt-35-turbo-instruc"
@@ -270,16 +273,16 @@ class Table(BaseModel):
 
 from typing import List
 
-#def get_tables(table):
-#    print('get_tables', type(table), table)
-#    tables_results = []
-#    response_text = ""
-#    for table_name in table.name:
-#        tables_results.append(table_name)
-#        response_text += f"Table: {table_name} "
-#        response_text += f" Columns:{', '.join(schema[table_name]['columns'])}"
+def get_tables(table):
+    print('get_tables', type(table), table)
+    tables_results = []
+    response_text = ""
+    for table_name in table.name:
+        tables_results.append(table_name)
+        response_text += f"Table: {table_name} "
+        response_text += f" Columns:{', '.join(schema[table_name]['columns'])}"
 
-#    return response_text
+    return response_text
 
 @tool
 def extract_list_tables_relavance(query: str):
@@ -330,7 +333,7 @@ dbstring="mysql://root:%s@127.0.0.1/tax" % quote("J@ck2468")
 #engine = create_engine(dbstring)
 
 #db = SQLDatabase(engine,schema=schema_name)
-db = SQLDatabase.from_uri(dbstring,schema="tax")
+db = SQLDatabase.from_uri(dbstring)
 
 db_chain = SQLDatabaseChain.from_llm(model, db, verbose=True,use_query_checker=True)
 #db_chain =create_sql_query_chain(model, db)
@@ -378,17 +381,18 @@ st.subheader("Ask a Question About the Data")
 user_question = st.text_input("Enter your question:")
 
 # Button to ask question
-if st.button("Ask ChatGPT"):
+if st.button("Submit"):
         if user_question:
             constant_value=get_model_constant('TABLE_HELP')
             print ("constant value:",constant_value)
-            user_question=user_question  + ' ' + constant_value
+            #user_question=user_question  + ' ' + constant_value
             toolkit = SQLDatabaseToolkit(db=db, llm=model)
-
+            toolkit.get_tools()
             agent_executor = create_sql_agent(
             llm=model,
             toolkit=toolkit,
-            verbose=True
+            verbose=True,
+            agent_type=AgentType.ZERO_SHOT_REACT_DESCRIPTION
             )
             response=agent_executor.run(user_question)
             print(response) 
